@@ -21,7 +21,8 @@ export default function OrderManagement({ isAdmin }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/products');
+        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+        const res = await fetch(`${base}/products`);
         if (res.ok) {
           const list = await res.json();
           const map = Object.fromEntries(list.map(p => [p._id || p.id, p]));
@@ -36,7 +37,8 @@ export default function OrderManagement({ isAdmin }) {
     if (!token) return;
     (async () => {
       try {
-        const res = await fetch('/api/orders', {
+        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+        const res = await fetch(`${base}/orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json().catch(() => null);

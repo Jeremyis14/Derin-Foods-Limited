@@ -213,7 +213,9 @@ export function CartProvider({ children }) {
       };
       console.log('createOrder payload:', payload);
 
-      const res = await fetch('/api/orders', {
+      const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+
+      const res = await fetch(`${base}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,7 +239,7 @@ export function CartProvider({ children }) {
       if (paymentProof && order?._id) {
         const formData = new FormData();
         formData.append('proof', paymentProof);
-        const proofRes = await fetch(`/api/orders/${order._id}/payment-proof`, {
+        const proofRes = await fetch(`${base}/orders/${order._id}/payment-proof`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData

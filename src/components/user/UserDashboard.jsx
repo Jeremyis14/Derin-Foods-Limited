@@ -16,41 +16,19 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 const WHATSAPP_NUMBER = '+2348055748661';
 
-// Sample user data - replace with your actual user data source
+// Default user data for when no user is logged in
 const defaultUser = {
-  id: 'unique_id',
+  id: 'guest',
   name: 'Guest',
   email: '',
   phone: '',
   address: '',
-  role: 'user', // or 'admin'
+  role: 'user',
 };
-
-// Sample orders data - replace with your actual orders data source
-const sampleOrders = [
-  {
-    id: 1,
-    date: '2025-08-20',
-    status: 'delivered',
-    total: 150,
-    items: [
-      { id: 1, name: 'Sample Product 1', quantity: 2, price: 50 },
-      { id: 2, name: 'Sample Product 2', quantity: 1, price: 50 }
-    ]
-  },
-  {
-    id: 2,
-    date: '2025-08-23',
-    status: 'in-transit',
-    total: 89,
-    items: [
-      { id: 3, name: 'Sample Product 3', quantity: 1, price: 89 }
-    ]
-  },
-];
 
 const CartContext = createContext();
 
@@ -137,41 +115,46 @@ const StatCard = ({ icon: Icon, label, value, color = 'text-gray-800', accent = 
 
 export default function UserDashboard({ user = defaultUser }) {
   const [activeTab, setActiveTab] = useState('orders');
-  const [orders, setOrders] = useState(sampleOrders);
   const [backendOrders, setBackendOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [complaint, setComplaint] = useState('');
   const { addItem, openCart, currentTier, totalSpent, discountAmount } = useCart();
+  const { currentUser } = useAuth();
 
-  // Fetch user data
+  // Fetch user profile and stats from backend
   useEffect(() => {
-    // Replace with your actual data fetching logic
-    const fetchUserData = async () => {
+    const fetchUserProfile = async () => {
       try {
-        // Local saved data
-        const savedOrders = localStorage.getItem('userOrders');
-        if (savedOrders) {
-          setOrders(JSON.parse(savedOrders));
-        }
-        
-        const savedFavorites = localStorage.getItem('userFavorites');
-        if (savedFavorites) {
-          setFavorites(JSON.parse(savedFavorites));
-        }
-        
-        const savedReviews = localStorage.getItem('userReviews');
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const base = import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
+        const res = await fetch(`${base}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          const profileData = await res.json();
+          // Update user data with real profile information
+          setUser(prev => ({
+            ...prev,
+            name: profileData.name || prev.name,
+            email: profileData.email || prev.email,
+            phone: profileData.phone || prev.phone,
+            address: profileData.address || prev.address
+          }));
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('Error fetching user profile:', error);
       }
     };
 
-    fetchUserData();
-  }, []);
+    if (currentUser) {
+      fetchUserProfile();
+    }
+  }, [currentUser]);
 
   // Fetch backend orders for the authenticated user
   useEffect(() => {
@@ -183,7 +166,7 @@ export default function UserDashboard({ user = defaultUser }) {
           setBackendOrders([]);
           return;
         }
-        const res = await fetch('/api/orders/myorders', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com'}/api/orders/myorders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -230,20 +213,59 @@ export default function UserDashboard({ user = defaultUser }) {
   // Profile Management
   const updateProfile = async (userId, updates) => {
     try {
-      // Update in database/localStorage
-      const updatedUser = { ...user, ...updates };
-      localStorage.setItem('userData', JSON.stringify(updatedUser));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const base = import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
+      const res = await fetch(`${base}/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const updatedUser = await res.json();
+
+      // Update local storage and state
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(prev => ({ ...prev, ...updates }));
+
       return updatedUser;
     } catch (error) {
       console.error('Error updating profile:', error);
+      throw error;
     }
   };
 
   // Order History
   const getOrderHistory = async (userId) => {
-    // Fetch from localStorage/database
-    const orders = JSON.parse(localStorage.getItem('userOrders')) || [];
-    return orders.filter(order => order.userId === userId);
+    // Fetch from backend API
+    const token = localStorage.getItem('token');
+    if (!token) return [];
+
+    try {
+      const base = import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
+      const res = await fetch(`${base}/orders/myorders`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching order history:', error);
+      return [];
+    }
   };
 
   // Support System
@@ -331,31 +353,40 @@ export default function UserDashboard({ user = defaultUser }) {
           </div>
         </div>
 
-        {/* Quick Stats */}
+        // Quick Stats with real backend data
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard 
-            icon={FiShoppingBag} 
-            label="Total Orders" 
-            value={(backendOrders.length || orders.length)}
+          <StatCard
+            icon={FiShoppingBag}
+            label="Total Orders"
+            value={backendOrders.length}
             color="text-blue-600"
             accent="bg-blue-50"
             iconAccent="text-blue-500"
           />
-          <StatCard 
-            icon={FiMessageCircle} 
-            label="Reviews" 
+          <StatCard
+            icon={FiMessageCircle}
+            label="Reviews Written"
             value={reviews.length}
             color="text-purple-600"
             accent="bg-purple-50"
             iconAccent="text-purple-500"
           />
-          <StatCard 
-            icon={FiTruck} 
-            label="In Transit" 
-            value={(backendOrders.length ? backendOrders : orders).filter(o => ['in-transit','processing','shipped'].includes((o.status||'').toLowerCase())).length}
+          <StatCard
+            icon={FiTruck}
+            label="In Transit"
+            value={backendOrders.filter(o =>
+              ['in-transit','processing','shipped'].includes((o.status||'').toLowerCase())).length}
             color="text-green-600"
             accent="bg-green-50"
             iconAccent="text-green-500"
+          />
+          <StatCard
+            icon={FiAward}
+            label="Loyalty Points"
+            value={Math.floor((totalSpent || 0) / 100)} // 1 point per ₦100 spent
+            color="text-amber-600"
+            accent="bg-amber-50"
+            iconAccent="text-amber-500"
           />
         </div>
 
@@ -389,21 +420,47 @@ export default function UserDashboard({ user = defaultUser }) {
           {activeTab === 'orders' && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">Recent Orders</h2>
-              {(backendOrders.length ? backendOrders : orders).length > 0 ? (
+              {backendOrders.length > 0 ? (
                 <div className="space-y-4">
-                  {(backendOrders.length ? backendOrders : orders).map(order => (
+                  {backendOrders.slice(0, 5).map(order => (
                     <OrderCard key={order.id} order={order} onBuyAgain={(o) => {
                       const items = o.items || o.orderItems || [];
                       items.forEach(i => {
                         const pid = i.product?._id || i.product || i.id;
-                        addItem({ id: pid, name: i.name, price: Number(i.price) || 0, image: i.image }, Math.max(1, i.quantity || i.qty || 1));
+                        addItem({
+                          id: pid,
+                          name: i.name,
+                          price: Number(i.price) || 0,
+                          image: i.image || '',
+                          stock: i.stock || 99
+                        }, Math.max(1, i.quantity || i.qty || 1));
                       });
                       openCart();
                     }} />
                   ))}
+                  {backendOrders.length > 5 && (
+                    <div className="text-center pt-4">
+                      <Link
+                        to="/user/orders"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                      >
+                        View All Orders ({backendOrders.length})
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-gray-500">No orders yet</p>
+                <div className="text-center py-8">
+                  <FiShoppingBag className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                  <p className="text-gray-500 mb-4">No orders yet</p>
+                  <Link
+                    to="/products"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                  >
+                    <FiShoppingBag />
+                    Start Shopping
+                  </Link>
+                </div>
               )}
             </div>
           )}

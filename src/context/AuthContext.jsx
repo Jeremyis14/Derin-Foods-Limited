@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       // Try to authenticate against backend to get a real JWT
       let token = null;
       try {
-        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000/api';
+        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
         const res = await fetch(`${base}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
       // Try backend registration first
       let userData = null;
       try {
-        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000/api';
+        const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
         const res = await fetch(`${base}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

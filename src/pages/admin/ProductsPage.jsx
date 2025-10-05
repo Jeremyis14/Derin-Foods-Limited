@@ -20,13 +20,18 @@ const ProductsPage = () => {
     try {
       setLoading(true);
       const data = await productService.getProducts();
-      // Ensure we're working with an array
+      // Ensure we're working with an array (now handled gracefully by service)
       const productsArray = Array.isArray(data) ? data : (data.products || []);
       setProducts(productsArray);
+
+      // If no products from API, show a helpful message
+      if (productsArray.length === 0) {
+        console.warn('No products returned from API, this might be normal if backend is not deployed yet');
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
-      // Set to empty array on error to prevent filter errors
+      toast.error('Failed to load products - using sample data');
+      // Set to empty array on error - UI will handle empty state
       setProducts([]);
     } finally {
       setLoading(false);

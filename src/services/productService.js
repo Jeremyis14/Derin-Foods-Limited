@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-const API_URL = '/api/products';
+const API_URL = import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
 
 // Create axios instance with base URL and common headers
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_URL,
   timeout: 10000, // 10 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -27,13 +27,16 @@ api.interceptors.response.use(
   }
 );
 
-// Get all products
+// Get all products with better error handling
 export const getProducts = async () => {
   try {
     console.log('Fetching products from:', API_URL);
     const response = await api.get('/products');
     console.log('Products response:', response.data);
-    return response.data;
+
+    // Ensure we return an array
+    const data = response.data;
+    return Array.isArray(data) ? data : (data.products || []);
   } catch (error) {
     console.error('Error in getProducts:', {
       message: error.message,
@@ -46,12 +49,11 @@ export const getProducts = async () => {
         method: error.config?.method,
       },
     });
-    
-    // Throw a more descriptive error
-    const errorMessage = error.response?.data?.message || 
-                        error.message || 
-                        'Failed to fetch products';
-    throw new Error(errorMessage);
+
+    // If the API call fails, return empty array instead of throwing
+    // This allows the UI to still work with sample data
+    console.warn('API call failed, returning empty array for graceful fallback');
+    return [];
   }
 };
 

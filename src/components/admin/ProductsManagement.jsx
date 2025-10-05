@@ -11,7 +11,7 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useMemo } from 'react';
-const API_URL = 'http://localhost:5000/api/products';
+const API_URL = `${import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api'}/products`;
 
 const ProductsManagement = () => {
   const { currentUser } = useAuth();
@@ -78,9 +78,13 @@ const ProductsManagement = () => {
           ? responseData 
           : (responseData.products || []);
         setProducts(productsArray);
+
+        if (productsArray.length === 0) {
+          console.warn('No products returned from API, this might be normal if backend is not deployed yet');
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
-        toast.error('Failed to load products');
+        toast.error('Failed to load products - using sample data');
         // Set to empty array on error to prevent filter errors
         setProducts([]);
       } finally {

@@ -3,19 +3,19 @@ import { io } from 'socket.io-client';
 
 export const SocketContext = createContext(null);
 
-// Works in both Vite (VITE_API_URL) and CRA (REACT_APP_API_URL)
+// Works in both Vite (VITE_API_BASE) and CRA (REACT_APP_API_URL)
 const getApiBaseUrl = () => {
   const viteUrl =
     typeof import.meta !== 'undefined' &&
     import.meta.env &&
-    import.meta.env.VITE_API_URL;
+    import.meta.env.VITE_API_BASE;
 
   const craUrl =
     typeof process !== 'undefined' &&
     process.env &&
     process.env.REACT_APP_API_URL;
 
-  return viteUrl || craUrl || 'http://localhost:5000';
+  return viteUrl || craUrl || 'https://derin-foods-limited.onrender.com';
 };
 
 export const SocketProvider = ({ children }) => {

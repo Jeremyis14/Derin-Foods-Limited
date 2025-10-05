@@ -33,7 +33,7 @@ import AdminStatsPage from './components/AdminStats';
 import { UserProvider } from './components/auth/UserAuth';
 import ProductsManagement from './components/admin/ProductsManagement';
 import { Link } from 'react-router-dom';
-import UserDashboard from './components/user/UserDashboard';
+import UserDashboard from './components/UserDashboard';
 import OrderManagement from './components/OrderManagement';
 import OrderPayment from './components/OrderPayment';
 import AdminLayout from './components/admin/AdminLayout';

@@ -187,7 +187,7 @@ const DashboardPage = () => {
         const token = localStorage.getItem('token');
 
         if (token) {
-          const base = import.meta?.env?.VITE_API_BASE || 'http://localhost:5000/api';
+          const base = import.meta?.env?.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
           const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
           // Fetch stats and recent orders in parallel
@@ -561,7 +561,7 @@ const DashboardPage = () => {
                     ))}
                   </div>
                 )}
-              </div>
+                              </div>
             </GlassCard>
           </div>
         </div>
