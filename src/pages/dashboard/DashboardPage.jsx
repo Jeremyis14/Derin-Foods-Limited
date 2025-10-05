@@ -187,7 +187,28 @@ const DashboardPage = () => {
         const token = localStorage.getItem('token');
 
         if (token) {
-          const base = import.meta?.env?.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
+          // Get API base URL with proper fallbacks
+          const getApiBaseUrl = () => {
+            const viteUrl = import.meta.env?.VITE_API_BASE;
+            const craUrl = process.env?.REACT_APP_API_URL;
+
+            if (viteUrl) return viteUrl;
+            if (craUrl) return craUrl;
+
+            // In development, use relative path for same-origin requests
+            if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+              return '';
+            }
+
+            // In production, use the current domain
+            if (typeof window !== 'undefined') {
+              return `${window.location.protocol}//${window.location.host}`;
+            }
+
+            return 'https://derin-foods-limited.onrender.com';
+          };
+
+          const base = getApiBaseUrl();
           const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
           // Fetch stats and recent orders in parallel

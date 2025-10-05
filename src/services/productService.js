@@ -1,6 +1,30 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE || 'https://derin-foods-limited.onrender.com/api';
+// Get the API base URL with proper fallbacks
+const getApiBaseUrl = () => {
+  // Check for environment variables
+  const viteUrl = import.meta.env?.VITE_API_BASE;
+  const craUrl = process.env?.REACT_APP_API_URL;
+
+  // Use environment variable or determine based on current location
+  if (viteUrl) return viteUrl;
+  if (craUrl) return craUrl;
+
+  // In development, use relative path for same-origin requests
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return '';
+  }
+
+  // In production, use the current domain
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+
+  // Fallback for SSR/build time
+  return 'https://derin-foods-limited.onrender.com';
+};
+
+const API_URL = getApiBaseUrl();
 
 // Create axios instance with base URL and common headers
 const api = axios.create({
@@ -10,6 +34,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor to add auth token if available
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token && token !== 'dev-token') {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Response interceptor to handle errors consistently
 api.interceptors.response.use(

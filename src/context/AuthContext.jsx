@@ -23,33 +23,82 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   // Check for existing session on load
   useEffect(() => {
-    console.log('AuthProvider - Checking for existing session...');
+    console.log('AuthContext - Checking for existing session...');
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      console.log('AuthProvider - Found stored user:', JSON.parse(storedUser));
-      setUser(JSON.parse(storedUser));
+    const storedToken = localStorage.getItem('token');
+
+    if (storedUser && storedToken && storedToken !== 'dev-token') {
+      try {
+        const userData = JSON.parse(storedUser);
+        console.log('AuthContext - Found stored user:', userData);
+
+        // Verify token with backend
+        const verifyToken = async () => {
+          try {
+            const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+            const res = await fetch(`${base}/auth/me`, {
+              headers: {
+                'Authorization': `Bearer ${storedToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.user) {
+                console.log('AuthContext - Token verified successfully');
+                setUser({ ...userData, token: storedToken });
+              } else {
+                throw new Error('Token verification failed');
+              }
+            } else {
+              throw new Error('Token verification failed');
+            }
+          } catch (error) {
+            console.warn('AuthContext - Token verification error:', error.message);
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('admin:auth');
+            setUser(null);
+          }
+        };
+
+        verifyToken();
+      } catch (error) {
+        console.error('AuthContext - Error parsing stored user data:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('admin:auth');
+        setUser(null);
+      }
     } else {
-      console.log('AuthProvider - No stored user found');
+      console.log('AuthContext - No valid stored session found');
+      if (storedToken === 'dev-token') {
+        console.log('AuthContext - Removing invalid dev-token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('admin:auth');
+      }
+      setUser(null);
     }
+
     setLoading(false);
   }, []);
 
   // Login function
   const login = async (email, password) => {
-    console.log('AuthContext - Login attempt with:', { email });
     try {
       setError(null);
       setLoading(true);
-      
-      // Find user by email and password
-      const foundUser = users.find(u => 
-        u.email.toLowerCase() === email.toLowerCase() && 
+
+      // Find user by email and password (local mock data)
+      const foundUser = users.find(u =>
+        u.email.toLowerCase() === email.toLowerCase() &&
         u.password === password
       );
 
@@ -60,36 +109,46 @@ export const AuthProvider = ({ children }) => {
 
       // Try to authenticate against backend to get a real JWT
       let token = null;
+      let backendUser = null;
+
       try {
         const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+        console.log('AuthContext - Attempting backend login to:', `${base}/auth/login`);
+
         const res = await fetch(`${base}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
+
         if (res.ok) {
           const data = await res.json();
           token = data.token;
+          backendUser = data.user;
+          console.log('AuthContext - Backend login successful');
+        } else {
+          console.warn('AuthContext - Backend login failed:', res.status, res.statusText);
+          throw new Error('Backend authentication failed');
         }
       } catch (e) {
-        console.warn('Backend login not available, falling back to dev token');
+        console.warn('AuthContext - Backend login not available, cannot authenticate:', e.message);
+        throw new Error('Authentication service unavailable. Please try again later.');
       }
 
-      // Set user in state and localStorage
+      // If we reach here, backend login was successful
       const userData = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        role: foundUser.role,
-        token: token || localStorage.getItem('token') || 'dev-token'
+        id: backendUser?.id || foundUser.id,
+        name: backendUser?.name || foundUser.name,
+        email: backendUser?.email || foundUser.email,
+        role: backendUser?.role || foundUser.role,
+        token: token
       };
 
       console.log('AuthContext - Login successful, setting user:', userData);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      // Ensure token is set for API requests
-      localStorage.setItem('token', userData.token);
-      
+      localStorage.setItem('token', token);
+
       // Set admin flag in sessionStorage if admin
       if (foundUser.role === 'admin') {
         console.log('AuthContext - Setting admin flag in sessionStorage');
@@ -121,11 +180,14 @@ export const AuthProvider = ({ children }) => {
       let userData = null;
       try {
         const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE) || 'https://derin-foods-limited.onrender.com/api';
+        console.log('AuthContext - Attempting backend registration to:', `${base}/auth/register`);
+
         const res = await fetch(`${base}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: derivedName, email, password, role: 'user' })
         });
+
         if (res.ok) {
           const data = await res.json();
           const token = data.token;
@@ -136,16 +198,14 @@ export const AuthProvider = ({ children }) => {
             role: data.user?.role || 'user',
             token
           };
+          console.log('AuthContext - Backend registration successful');
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Registration failed');
         }
-      } catch (_) {
-        // Ignore network errors and fallback to local
-      }
-
-      // Fallback to local mock if backend unavailable
-      if (!userData) {
-        const newUser = { id: Date.now(), name: derivedName, email, password, role: 'user' };
-        users.push(newUser);
-        userData = { id: newUser.id, name: derivedName, email, role: 'user', token: localStorage.getItem('token') || 'dev-token' };
+      } catch (e) {
+        console.warn('AuthContext - Backend registration not available:', e.message);
+        throw new Error('Registration service unavailable. Please try again later.');
       }
 
       setUser(userData);
