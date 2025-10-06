@@ -195,16 +195,7 @@ const DashboardPage = () => {
             if (viteUrl) return viteUrl;
             if (craUrl) return craUrl;
 
-            // In development, use relative path for same-origin requests
-            if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-              return '';
-            }
-
-            // In production, use the current domain
-            if (typeof window !== 'undefined') {
-              return `${window.location.protocol}//${window.location.host}`;
-            }
-
+            // Always use Render deployment URL for production
             return 'https://derin-foods-limited.onrender.com';
           };
 

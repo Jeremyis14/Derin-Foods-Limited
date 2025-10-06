@@ -1,26 +1,16 @@
 import axios from 'axios';
 
-// Get the API base URL with proper fallbacks
+// Get the API base URL - prioritize Render deployment
 const getApiBaseUrl = () => {
-  // Check for environment variables
+  // Check for environment variables first
   const viteUrl = import.meta.env?.VITE_API_BASE;
   const craUrl = process.env?.REACT_APP_API_URL;
 
-  // Use environment variable or determine based on current location
+  // Use environment variable if set, otherwise use Render URL
   if (viteUrl) return viteUrl;
   if (craUrl) return craUrl;
 
-  // In development, use relative path for same-origin requests
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return '';
-  }
-
-  // In production, use the current domain
-  if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.host}`;
-  }
-
-  // Fallback for SSR/build time
+  // Always use Render deployment URL for production
   return 'https://derin-foods-limited.onrender.com';
 };
 
